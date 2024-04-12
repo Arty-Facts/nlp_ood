@@ -1,0 +1,14 @@
+ipykernel
+ipympl
+ipywidgets
+jupyter
+matplotlib
+notebook
+numpy
+optuna
+optuna-dashboard
+torch
+torchvision
+tox
+docker
+cryptography
