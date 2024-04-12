@@ -1,27 +1,4 @@
-[![GitHub Actions Status](https://github.com/Arty-Facts/python_docker_template/actions/workflows/python-package-test.yml/badge.svg)](https://github.com/Arty-Facts/python_docker_template/actions/workflows/python-package-test.yml/badge.svg)
-
-# Docker project template
-
-## How to use the template
-
-### For empty project
-```
-git clone https://github.com/Arty-Facts/python_docker_template.git
-
-git remote remove origin
-
-git remote add origin <new remote>
-
-git push --set-upstream origin main
-```
-
-### For active project 
-```
-git clone https://github.com/Arty-Facts/python_docker_template.git
-cd python_docker_template
-mv -r $(ls  --ignore=.git ) .. ; cd ..
-rm rf python_docker_template
-```
+# Project: Out of Distribution Detection in NLP 
 
 
 ## Setup host system (Not needed if using docker)
