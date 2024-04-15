@@ -6,3 +6,6 @@ __pycache__
 *.egg-info/
 .coverage
 .tox
+project/dredze_amazon_reviews.*
+project/emb_amazon_corpus.pkl
+project/figs/*
