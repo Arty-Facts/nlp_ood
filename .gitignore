@@ -9,3 +9,8 @@ __pycache__
 project/dredze_amazon_reviews.*
 project/emb_amazon_corpus.pkl
 project/figs/*
+.local
+.ipython
+.config
+.nv
+project/*.pt

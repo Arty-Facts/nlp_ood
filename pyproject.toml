@@ -20,17 +20,14 @@ classifiers = [
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache 2.0 License",
     "Programming Language :: Python :: 3",
 ]
 dynamic = ["dependencies"]
 
 [tool.setuptools.dynamic]
-dependencies = {file = ["environment/requirements.txt"]}
+dependencies = {file = ["requirements.txt"]}
 
-[project.scripts]
-hello = "project.helloworld:main"
-setup_mysql = "project.setup_mysql:main"
 
 [tool.setuptools]
 packages = ["project"]

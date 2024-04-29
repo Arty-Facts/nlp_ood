@@ -1,78 +1,35 @@
 # Project: Out of Distribution Detection in NLP 
 
+## Running py file using dockipy
 
-## Setup host system (Not needed if using docker)
+### install dockipy
 ```
-chmod +x environment/base-packages.sh
-sudo ./environment/base-packages.sh
-```
+pip install dockipy
+```	
 
-## Enter the docker image environment 
-
-In linux
+### Run a script
 
 ```
-./docker.sh [clean]
+dockipy [script].py
 ```
 
-## Enter the virtual environment 
-
-In windows
+### Run Jupyter server
 
 ```
-env.bat 
-```
-
-
-In linux
-
-```
-source ./env.sh [clean]
-```
-
-In docker
-
-```
-source env.sh [clean]
-```
-
-## Run Jupyter server
-
-```
-jupyter.sh
-```
-
-in docker
-
-```
-./deploy_docker.sh jupyter.sh 
+dockibook project/
 ```
 you can now access the jupyter server on: 
-http://localhost:8888/?token=docker
+http://localhost:8888/?token=ood_nlp
 
 works with colab
 
-## Deploy a script inside a docker image
+### Deploy a script inside a docker image
 
 ```
-./deploy_docker.sh [script]
+dockishell <command>
 ```
-docker deploy will run the script inside the docker image and then exit the image, this till be done inside python virtual environment
 
+## Update environment
 
-## Update docker environment
-
-In the file (environment/base-packeges.sh) add apt packages that you need in your project
-
-note that a newline will brake the RUN command and thus "\\" should be used when adding dependencies. More information on how docker works can be found on https://docs.docker.com/get-started/
-
-
-## Update pip environment
-
-Python dependencies for the project should be added to the environment/requirements.txt file
-
-## Run tests using 
-
-```
-tox
-```
+Python dependencies for the project should be added to the requirements.txt file
+System dependencies should be added to the docki.yaml file
