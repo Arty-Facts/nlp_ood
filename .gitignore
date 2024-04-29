@@ -10,4 +10,5 @@ project/dredze_amazon_reviews.*
 project/emb_amazon_corpus.pkl
 project/figs/*
 project/*.pt
+project/*.pth
 
