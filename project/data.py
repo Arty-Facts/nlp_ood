@@ -20,6 +20,7 @@ import torch
 import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, CLIPTextModel, AutoModel, CLIPModel
+from tensorflow.keras.preprocessing.sequence import pad_sequences
 
 class TextEncoder(nn.Module):
 
@@ -31,7 +32,46 @@ class TextEncoder(nn.Module):
     def forward(self, Xbatch):
         ber_out = self.bert_model(input_ids=Xbatch)
         return ber_out.last_hidden_state[:, 0, :]
+
+class DocumentPreprocessor:
+    def __init__(self, data, tokenizer, max_len=None):
+        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
+        self.max_len = max_len
+        self.data = data
+        self.tokens = self.tokenize_text(self.data)
+        self.padded_tokens = self.padding(self.tokens)
+        
+    def padding(self, data):
+        """
+        Pad a given sentence based on the maximum length
+        
+        Argument:
+        data: a list of instance (x, y, z, c), where x is the label, y is the sentence and z is the corresponding encoding
+
+        Return:
+        padded_text: a list of instance (x, y, z), where x is the label, y is the sentence, 
+                     z is the corresponding encoding with padding
+        """
+        padded_text = [(x, y, pad_sequences(torch.tensor([z]), maxlen=self.max_len, padding='post', truncating='post')) 
+                       for x,y,z in data]
+        return padded_text
+        
+    def tokenize_text(self, data):
+        """
+        Tokenize the given sentence
+
+        Argument:
+        data: a list of x, [y], z, where x is the label, y is the list of all sentences in label x, 
+              z is the no of sentences in label x.
+
+        Return:
+        tokenize_text: a list of instance (x, y, z), where x is the label, y is the sentence and z is the corresponding encoding
+        """
     
+        tokenize_text = [(data[label][0], data[label][1][i], self.tokenizer.encode(data[label][1][i])) for label in range(0,len(data))
+                         for i in range(0,data[label][2])]
+        return tokenize_text
+        
 
 def create_df(features, dataset):
     all_data={}
@@ -40,6 +80,19 @@ def create_df(features, dataset):
         all_data.update({features[i]: data})
     data = pd.DataFrame(all_data)
     return data
+
+
+
+def prepare_data(data,dname):
+    data = data.sort_values(by='label', ascending=True)
+    labels = data['label'].unique()
+    text = [(label, data[data['label'] == label]['text'].values.tolist(), len(data[data['label'] == label]['text'].values.tolist())) 
+            for label in labels]
+    sorted_text = sorted(text, key=lambda x: x[2], reverse=True)
+    if dname == 'NC-Dataset':
+        id_data = sorted_text[0:7]
+        ood_data = sorted_text[7:len(text)]
+    return id_data, ood_data
 
 def get_dataset(name):
     if name == 'Amazon':
@@ -99,29 +152,10 @@ def get_datastream(data, model_name):
     
     else: 
         print("Invalid Encoder Name!")
-    all_text = list(data['text'])
-    tokenize_text = [tokenizer.encode(sentence, add_special_tokens=True) for sentence in all_text]
-    tokenize_text = [idx for lst in tokenize_text for idx in lst]
-    print("Length of the dataset:",len(all_text))
-    print("Total no of words/tokens:", len(tokenize_text))
-    pad_value = 256 - len(tokenize_text) % 256
-    if pad_value != 0:
-        tokenize_text = tokenize_text + [tokenizer.pad_token_id] * pad_value
-    print("Total no of words/tokens after padding:",len(tokenize_text))
-    batch = [torch.tensor(tokenize_text[idk:idk+512]) for idk in range(0,len(tokenize_text),256)]
-    print("Total no of batches:", len(batch))
-    model = TextEncoder(model_name='bert-base-uncased')
-    emb = []
-    with torch.no_grad():
-        model.eval()
-        model.to('cuda')
-        for _batch_ in batch:
-            _batch_ = _batch_.to('cuda').unsqueeze(0)
-            output = model(_batch_).cpu().detach()
-            emb.append(output[0])
-        model.to('cpu')
-    print("Total no of embeddings:", len(emb))
-    return 0 
+   
+    id_text, ood_text = prepare_data(data,'NC-Dataset')
+    testing_preprocessor = DocumentPreprocessor(data = id_text, tokenizer=name, max_len=512)
+    return 0
 
 def main():
     parser = argparse.ArgumentParser(description="Create a Dataloader for the given Dataset")
