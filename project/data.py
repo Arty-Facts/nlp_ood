@@ -72,7 +72,19 @@ class DocumentPreprocessor:
                          for i in range(0,data[label][2])]
         return tokenize_text
         
+    def token2text(self, tok):
+        """
+        Generate Text from tokens
 
+        Argument: 
+        tok: a list that contains token arrays 
+
+        Return:
+        text: list of text for the given tokens
+        """
+        text = [self.tokenizer.decode(token_array, skip_special_tokens=True) for token_array in tok]
+        return text
+    
 def create_df(features, dataset):
     all_data={}
     for i in range(0,len(features)):
