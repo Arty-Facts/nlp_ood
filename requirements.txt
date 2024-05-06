@@ -16,3 +16,4 @@ tqdm
 transformers[torch]
 ood_detectors
 tensorflow
+datasets
