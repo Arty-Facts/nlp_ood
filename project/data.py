@@ -5,7 +5,6 @@ List of Datasets:
 2)arg: SST2
 3)arg: IMBD
 4)arg: Yelp (Yelp Polarity) 
-5)arg: Amazon (Amazon Review)
 
 data.py downloads the above list of datasets depending on the argument and returns a dataframe.
 """
@@ -93,34 +92,8 @@ def create_df(features, dataset):
     data = pd.DataFrame(all_data)
     return data
 
-
-
 def prepare_data(data,dname):
-    data = data.sort_values(by='label', ascending=True)
-    labels = data['label'].unique()
-    text = [(label, data[data['label'] == label]['text'].values.tolist(), len(data[data['label'] == label]['text'].values.tolist())) 
-            for label in labels]
-    sorted_text = sorted(text, key=lambda x: x[2], reverse=True)
     if dname == 'NC-Dataset':
-        id_data = sorted_text[0:7]
-        ood_data = sorted_text[7:len(text)]
-    return id_data, ood_data
-
-def get_dataset(name):
-    if name == 'Amazon':
-        if pathlib.Path('dredze_amazon_reviews.zip').exists():
-            print("Already downloaded")
-        else:
-            print("Downloading Amazon Reviews Dataset")
-            url = 'http://www.cse.chalmers.se/~richajo/waspnlp2024/dredze_amazon_reviews.zip'
-            filename = wget.download(url)
-            with zipfile.ZipFile(filename, 'r') as zip_ref:
-                zip_ref.extractall()
-        data = pd.read_csv('dredze_amazon_reviews.tsv', sep='\t', header=None, names=['product', 'sentiment', 'text'])
-        data = data.rename(columns={'product':'label'})
-        data = data.drop(columns=data.columns.difference(['text', 'label']))
-        
-    elif name == 'NC-Dataset':
         dataset = load_dataset("heegyu/news-category-dataset")
         features = list(dataset['train'].features.keys())
         data = create_df(features, dataset)
@@ -128,27 +101,43 @@ def get_dataset(name):
         data = data.rename(columns={'category':'label'})
         data = data.drop(columns=data.columns.difference(['text', 'label']))
 
-    elif name == 'SST2':
+    elif dname == 'SST2':
         dataset = load_dataset("stanfordnlp/sst2")
         features = list(dataset['train'].features.keys())
         data = create_df(features, dataset)
+        data = data.rename(columns={'sentence':'text'})
+        data = data.drop(columns=data.columns.difference(['text', 'label']))
     
-    elif name == 'IMDB':
+    elif dname == 'IMDB':
         dataset = load_dataset("stanfordnlp/imdb")
         features = list(dataset['train'].features.keys())
         data = create_df(features, dataset)
     
-    elif name == 'Yelp':
+    elif dname == 'Yelp':
         dataset = load_dataset("yelp_polarity")
         features = list(dataset['train'].features.keys())
         data = create_df(features, dataset)
 
     else:
         print("Invalid Dataset Name!")
-    return data
+        
+    data = data.sort_values(by='label', ascending=True)
+    labels = data['label'].unique()
+    text = [(label, data[data['label'] == label]['text'].values.tolist(), len(data[data['label'] == label]['text'].values.tolist())) 
+            for label in labels]
+    sorted_text = sorted(text, key=lambda x: x[2], reverse=True)
+    
+    if dname == 'NC-Dataset':
+        id_data = sorted_text[0:7]
+        ood_data = sorted_text[7:len(text)]
 
-def get_datastream(data, model_name):
+    else:
+        id_data = [sorted_text[0]]
+        ood_data = [sorted_text[1]]
+    return id_data, ood_data
 
+
+def dataset(dname, model_name, max_len):
     if model_name == 'Bert':
         tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
         name = 'bert-base-uncased'
@@ -165,18 +154,7 @@ def get_datastream(data, model_name):
     else: 
         print("Invalid Encoder Name!")
    
-    id_text, ood_text = prepare_data(data,'NC-Dataset')
-    testing_preprocessor = DocumentPreprocessor(data = id_text, tokenizer=name, max_len=512)
+    id_text, ood_text = prepare_data(dname)
+    testing_preprocessor = DocumentPreprocessor(data = id_text, tokenizer=name, max_len=max_len)
     return 0
 
-def main():
-    parser = argparse.ArgumentParser(description="Create a Dataloader for the given Dataset")
-    parser.add_argument("--dname", type=str, default='Amazon')
-    parser.add_argument("--encoder", type=str, default='Bert')
-    args = parser.parse_args()
-    data = get_dataset(args.dname)
-    data_loader = get_datastream(data,args.encoder)
-    return data
-
-if __name__== "__main__":
-    main()
