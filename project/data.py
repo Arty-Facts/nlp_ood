@@ -8,11 +8,8 @@ List of Datasets:
 
 data.py downloads the above list of datasets depending on the argument and returns a dataframe.
 """
-
-import pathlib
-import argparse
-import wget
-import zipfile
+import random
+import numpy as np
 import pandas as pd
 from datasets import load_dataset
 import torch
@@ -20,6 +17,7 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from transformers import AutoTokenizer, CLIPTextModel, AutoModel, CLIPModel
 from tensorflow.keras.preprocessing.sequence import pad_sequences
+import torch.nn.functional as F
 
 class TextEncoder(nn.Module):
 
@@ -156,5 +154,31 @@ def dataset(dname, model_name, max_len):
    
     id_text, ood_text = prepare_data(dname)
     testing_preprocessor = DocumentPreprocessor(data = id_text, tokenizer=name, max_len=max_len)
+    df = pd.DataFrame(testing_preprocessor.tokens, columns=['Label', 'Text', 'Tokens'])
+    labels = list(set(map(lambda x: x[0], testing_preprocessor.tokens)))
+    split_dfs = [group for _, group in df.groupby('Label')]
+    batch={}
+    for i in range(0,len(labels)):
+        label = labels[i]
+        data = split_dfs[i]['Tokens'].tolist()
+        data = random.sample(data, len(data))
+        data = np.concatenate(data)
+        data = [torch.tensor(data[idk:idk+512]) for idk in range(0,len(data),256)]
+        if len(data[-1]) == 256:
+            data[-1] =  F.pad(data[-1], (0, 256), value=0)
+        batch[label] = data
+    label = labels[0]
+    dataloader = DataLoader(batch[label], batch_size=32)
+    model = TextEncoder(model_name='bert-base-uncased')
+    emb = []
+    with torch.no_grad():
+        model.eval()
+        model.to('cuda')
+        for data in dataloader:
+            mask = (data != 0).long().to('cuda')
+            data = data.to('cuda')
+            output = model(data,mask).cpu().detach()
+            emb.append(output[0])
+        model.to('cpu')
     return 0
 
