@@ -1,184 +1,185 @@
-"""
-List of Datasets:
-
-1)arg: NC-Dataset (News Category Dataset) 
-2)arg: SST2
-3)arg: IMBD
-4)arg: Yelp (Yelp Polarity) 
-
-data.py downloads the above list of datasets depending on the argument and returns a dataframe.
-"""
-import random
-import numpy as np
-import pandas as pd
 from datasets import load_dataset
+from transformers import AutoTokenizer, AutoModel
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, CLIPTextModel, AutoModel, CLIPModel
-from tensorflow.keras.preprocessing.sequence import pad_sequences
-import torch.nn.functional as F
+from torch import nn
+from sklearn.model_selection import train_test_split
+from collections import defaultdict
+
+class ConcatDataset(torch.utils.data.Dataset):
+    def __init__(self, datasets):
+        self.datasets = datasets
+        self.cumulative = [len(d) for d in datasets]
+        self.size = sum(len(d) for d in datasets)
+
+    def to(self, device):
+        for d in self.datasets:
+            d.to(device)
+        return self
+    
+    def __len__(self):
+        return self.size
+    
+    def __getitem__(self, idx):
+        offset = 0
+        for d, i in enumerate(self.cumulative):
+            if idx < i:
+                return self.datasets[d][idx-offset]
+            offset += i
+        return None
+            
+    def get_text(self, idx):
+        offset = 0
+        for d, i in enumerate(self.cumulative):
+            if idx < i:
+                return self.datasets[d].get_text(idx-offset)
+            offset += i
+        return None
+            
+    def collate_fn(self, instances):
+        return self.datasets[0].collate_fn(instances)
 
 class TextEncoder(nn.Module):
-
-    def __init__(self, model_name):
+    def __init__(self, embed_model):
         super().__init__()
-        self.name = model_name
-        self.bert_model = AutoModel.from_pretrained(model_name)
+        self.name = embed_model
+        self.model = AutoModel.from_pretrained(embed_model)
 
-    def forward(self, Xbatch):
-        ber_out = self.bert_model(input_ids=Xbatch)
+    def forward(self, Xbatch, Xmask):
+        ber_out = self.model(input_ids=Xbatch, attention_mask=Xmask)
         return ber_out.last_hidden_state[:, 0, :]
 
-class DocumentPreprocessor:
-    def __init__(self, data, tokenizer, max_len=None):
-        self.tokenizer = AutoTokenizer.from_pretrained(tokenizer)
-        self.max_len = max_len
-        self.data = data
-        self.tokens = self.tokenize_text(self.data)
-        self.padded_tokens = self.padding(self.tokens)
-        
-    def padding(self, data):
-        """
-        Pad a given sentence based on the maximum length
-        
-        Argument:
-        data: a list of instance (x, y, z, c), where x is the label, y is the sentence and z is the corresponding encoding
+class TextDataset(torch.utils.data.Dataset):
+    def __init__(self, data, encoder, tokenizer, token_len = None, device='cpu'):
+        self.tokenizer = tokenizer
+        self.encoder = encoder
+        if token_len is None or token_len < 0 or token_len > self.tokenizer.model_max_length:
+            self.token_len = self.tokenizer.model_max_length
+        else:
+            self.token_len = token_len
+        self.token_half = self.token_len//2
+        self.cls_token = self.tokenizer.cls_token_id
+        self.pad_token = self.tokenizer.pad_token_id
+        self.labels = data['label']
+        # remove the cls_token from the encoded text
+        self.tokens = [list(filter(lambda t: t != self.cls_token, self.tokenizer.encode(d))) for d in data['text']]
+        self.index_info = [(line, item) for line, t in enumerate(self.tokens) for item in range(self.token_half-1, len(t)-self.token_half if len(t) > self.token_len else self.token_half, self.token_half)]
+        self.device = device
+        self.size = len(self.index_info)
 
-        Return:
-        padded_text: a list of instance (x, y, z), where x is the label, y is the sentence, 
-                     z is the corresponding encoding with padding
-        """
-        padded_text = [(x, y, pad_sequences(torch.tensor([z]), maxlen=self.max_len, padding='post', truncating='post')) 
-                       for x,y,z in data]
-        return padded_text
-        
-    def tokenize_text(self, data):
-        """
-        Tokenize the given sentence
+    def to(self, device):
+        self.device = device
+        self.encoder.to(device)
+        return self
 
-        Argument:
-        data: a list of x, [y], z, where x is the label, y is the list of all sentences in label x, 
-              z is the no of sentences in label x.
-
-        Return:
-        tokenize_text: a list of instance (x, y, z), where x is the label, y is the sentence and z is the corresponding encoding
-        """
+    def __len__(self):
+        return self.size
     
-        tokenize_text = [(data[label][0], data[label][1][i], self.tokenizer.encode(data[label][1][i])) for label in range(0,len(data))
-                         for i in range(0,data[label][2])]
-        return tokenize_text
-        
-    def token2text(self, tok):
-        """
-        Generate Text from tokens
-
-        Argument: 
-        tok: a list that contains token arrays 
-
-        Return:
-        text: list of text for the given tokens
-        """
-        text = [self.tokenizer.decode(token_array, skip_special_tokens=True) for token_array in tok]
-        return text
+    def __getitem__(self, idx):
+        line, item = self.index_info[idx]
+        # start self.token_half -1 tokens before item of at the beginning of the line, leave space for the cls token
+        start = max(0, item-self.token_half-1)
+        # end self.token_half tokens after item or at the end of the line
+        end = min(len(self.tokens[line]), item+self.token_half)
+        return [self.cls_token] + self.tokens[line][start:end], self.labels[line]
     
-def create_df(features, dataset):
-    all_data={}
-    for i in range(0,len(features)):
-        data = dataset['train'][features[i]]
-        all_data.update({features[i]: data})
-    data = pd.DataFrame(all_data)
-    return data
+    def get_text(self, idx):
+        line, item = self.index_info[idx]
+        start = max(0, item-self.token_half-1)
+        end = min(len(self.tokens[line]), item+self.token_half)
+        return self.tokenizer.decode(self.tokens[line][start:end])
 
-def prepare_data(data,dname):
-    if dname == 'NC-Dataset':
-        dataset = load_dataset("heegyu/news-category-dataset")
-        features = list(dataset['train'].features.keys())
-        data = create_df(features, dataset)
-        data['text'] = data['headline'].astype(str)+'. '+ data['short_description']
-        data = data.rename(columns={'category':'label'})
-        data = data.drop(columns=data.columns.difference(['text', 'label']))
+    def collate_fn(self, instances):
+        X, Y = zip(*instances)
+        max_len = max(len(x) for x in X)
+        Xpadded = torch.as_tensor([x + [self.pad_token]*(max_len-len(x)) for x in X]).to(self.device)
+        with torch.no_grad():
+            emb = self.encoder(Xpadded, (Xpadded != self.pad_token).long().to(self.device))
+        return emb, Y
+    from collections import defaultdict
 
-    elif dname == 'SST2':
-        dataset = load_dataset("stanfordnlp/sst2")
-        features = list(dataset['train'].features.keys())
-        data = create_df(features, dataset)
-        data = data.rename(columns={'sentence':'text'})
-        data = data.drop(columns=data.columns.difference(['text', 'label']))
-    
-    elif dname == 'IMDB':
+def id_dataset(id_name, embed_model, tokenizer, token_len, device):
+    if id_name == 'IMDB':
         dataset = load_dataset("stanfordnlp/imdb")
-        features = list(dataset['train'].features.keys())
-        data = create_df(features, dataset)
+        label = ['negative', 'positive']
+        labels = [label[l] for l in dataset['train']['label']]
+        texts = dataset['train']['text']
+        train = {'label':labels, 'text':texts}
+
+        labels = [label[l] for l in dataset['test']['label']]
+        texts = dataset['test']['text']
+        eval = {'label':labels, 'text':texts}
     
-    elif dname == 'Yelp':
+    elif id_name == 'Yelp':
         dataset = load_dataset("yelp_polarity")
-        features = list(dataset['train'].features.keys())
-        data = create_df(features, dataset)
+        label = ['negative', 'positive']
+        labels = [label[l] for l in dataset['train']['label']]
+        texts = dataset['train']['text']
+        train = {'label':labels, 'text':texts}
 
-    else:
-        print("Invalid Dataset Name!")
+        labels = [label[l] for l in dataset['test']['label']]
+        texts = dataset['test']['text']
+        eval = {'label':labels, 'text':texts}
+    
+    elif id_name == 'SST2':
+        dataset = load_dataset("stanfordnlp/sst2")
+        label = ['negative', 'positive']
+
+        labels = [label[l] for l in dataset['train']['label']]
+        texts = dataset['train']['sentence']
+        train = {'label':labels, 'text':texts}
+
+        labels = [label[l] for l in dataset['test']['label']]
+        texts = dataset['test']['sentence']
+        eval = {'label':labels, 'text':texts}
+    
+    elif id_name == 'NC-Dataset':
+        split_topic = 7
+        dataset = load_dataset("heegyu/news-category-dataset")
+        new_dataset = defaultdict(list)
+        for head, desc, cat in zip(dataset['train']['headline'], dataset['train']['short_description'], dataset['train']['category']):
+            new_dataset[cat].append(head + ': ' + desc)
+        new_dataset = sorted(new_dataset.items(), key=lambda x: len(x[1]), reverse=True)
+        id = new_dataset[:split_topic]
         
-    data = data.sort_values(by='label', ascending=True)
-    labels = data['label'].unique()
-    text = [(label, data[data['label'] == label]['text'].values.tolist(), len(data[data['label'] == label]['text'].values.tolist())) 
-            for label in labels]
-    sorted_text = sorted(text, key=lambda x: x[2], reverse=True)
-    
-    if dname == 'NC-Dataset':
-        id_data = sorted_text[0:7]
-        ood_data = sorted_text[7:len(text)]
+        eval, train = {'label':[], 'text':[]}, {'label':[], 'text':[]}
+        for label, data in id:
+            t, e = train_test_split(data, test_size=0.2)
+            eval['label'] += [label]*len(e)
+            eval['text'] += e
+            train['label'] += [label]*len(t)
+            train['text'] += t
+    train_dataset = TextDataset(train, embed_model, tokenizer, token_len, device)
+    eval_dataset = TextDataset(eval, embed_model, tokenizer, token_len, device)
+    return train_dataset, eval_dataset
 
+def ood_dataset(ood_name, embed_model, tokenizer, token_len, device):
+    if ood_name == 'NC-Dataset':
+        dataset = load_dataset("heegyu/news-category-dataset")
+        split_topic = 7
+        new_dataset = defaultdict(list)
+        for head, desc, cat in zip(dataset['train']['headline'], dataset['train']['short_description'], dataset['train']['category']):
+            new_dataset[cat].append(head + ': ' + desc)
+        new_dataset = sorted(new_dataset.items(), key=lambda x: len(x[1]), reverse=True)
+        ood = new_dataset[split_topic:]
+        ood_data = {'label':[], 'text':[]}
+        for label, data in ood:
+            ood_data['label'] += [label]*len(data)
+            ood_data['text'] += data
+        return TextDataset(ood_data, embed_model, tokenizer, token_len, device)
     else:
-        id_data = [sorted_text[0]]
-        ood_data = [sorted_text[1]]
-    return id_data, ood_data
+        return ConcatDataset(id_dataset(ood_name, embed_model, tokenizer, token_len, device))
 
-
-def dataset(dname, model_name, max_len):
-    if model_name == 'Bert':
-        tokenizer = AutoTokenizer.from_pretrained('bert-base-uncased')
-        name = 'bert-base-uncased'
-    elif model_name == 'Roberta':
-        tokenizer = AutoTokenizer.from_pretrained('roberta-base')
-        name = 'roberta-base'
-    elif model_name == 'Xlm_Roberta':
-        tokenizer = AutoTokenizer.from_pretrained('xlm-roberta-base')
-        name = 'xlm-roberta-base'
-    
-    elif model_name == 'CLIP':
-        tokenizer = AutoTokenizer.from_pretrained("openai/clip-vit-base-patch32")
-    
-    else: 
-        print("Invalid Encoder Name!")
-   
-    id_text, ood_text = prepare_data(dname)
-    testing_preprocessor = DocumentPreprocessor(data = id_text, tokenizer=name, max_len=max_len)
-    df = pd.DataFrame(testing_preprocessor.tokens, columns=['Label', 'Text', 'Tokens'])
-    labels = list(set(map(lambda x: x[0], testing_preprocessor.tokens)))
-    split_dfs = [group for _, group in df.groupby('Label')]
-    batch={}
-    for i in range(0,len(labels)):
-        label = labels[i]
-        data = split_dfs[i]['Tokens'].tolist()
-        data = random.sample(data, len(data))
-        data = np.concatenate(data)
-        data = [torch.tensor(data[idk:idk+512]) for idk in range(0,len(data),256)]
-        if len(data[-1]) == 256:
-            data[-1] =  F.pad(data[-1], (0, 256), value=0)
-        batch[label] = data
-    label = labels[0]
-    dataloader = DataLoader(batch[label], batch_size=32)
-    model = TextEncoder(model_name='bert-base-uncased')
-    emb = []
-    with torch.no_grad():
-        model.eval()
-        model.to('cuda')
-        for data in dataloader:
-            mask = (data != 0).long().to('cuda')
-            data = data.to('cuda')
-            output = model(data,mask).cpu().detach()
-            emb.append(output[0])
-        model.to('cpu')
-    return 0
-
+def load_datasets(id, ood, embed_model, device='cpu', token_len = None):
+    encoder = TextEncoder(embed_model).to(device)
+    tokenizer = AutoTokenizer.from_pretrained(embed_model)
+    if isinstance(id, str):
+        train, eval = id_dataset(id, encoder, tokenizer, token_len, device)
+    else:
+        train, eval = zip(*[id_dataset(id_name, encoder, tokenizer, token_len, device) for id_name in id])
+        train = ConcatDataset(train)
+        eval = ConcatDataset(eval)
+    if isinstance(ood, str):
+        ood = ood_dataset(ood, encoder, tokenizer, token_len, device)
+    else:
+        ood = ConcatDataset([ood_dataset(ood_name, encoder, tokenizer, token_len, device) for ood_name in ood])
+    return train, eval, ood
