@@ -37,7 +37,7 @@ class TextDataset(torch.utils.data.Dataset):
                 self.index_info.append((line, len(t)-1))
         self.device = device
         self.size = len(self.index_info)
-        self.texts = data['text']
+        self.text = data['text']
 
     def to(self, device):
         self.device = device
