@@ -111,6 +111,7 @@ def download_and_unzip(url, extract_to='.'):
     else:
         print("Failed to download the file")
 
+AVAILABLE_DATASETS = ['IMDB', 'Yelp', 'SST2', 'NC-Top-Dataset', 'NC-Bottom-Dataset', 'Amazon-Review', 'Amazon-Music', 'Amazon-Books', 'Amazon-DVD', 'Amazon-Camera', 'Amazon-Health', 'Amazon-Software']
 
 def id_dataset(id_name):
     if id_name == 'IMDB':
