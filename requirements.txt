@@ -15,5 +15,4 @@ spacy[cuda11x]
 tqdm
 transformers[torch]
 ood_detectors
-tensorflow
 datasets
