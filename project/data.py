@@ -29,10 +29,15 @@ class TextDataset(torch.utils.data.Dataset):
         self.labels = data['label']
         # remove the cls_token from the encoded text
         self.tokens  = tokenizer(text=data['text'], add_special_tokens=False)['input_ids']
-        self.index_info = [(line, item) for line, t in enumerate(self.tokens) for item in range(self.token_half-1, len(t)-self.token_half if len(t) > self.token_len else self.token_half, self.token_half)]
+        self.index_info = []
+        for line, t in enumerate(self.tokens):
+            for item in range(self.token_half-1, len(t), self.token_half):
+                self.index_info.append((line, item))
+            if len(t) <= self.token_half:
+                self.index_info.append((line, len(t)-1))
         self.device = device
         self.size = len(self.index_info)
-        self.data_text = data['text']
+        self.texts = data['text']
 
     def to(self, device):
         self.device = device
