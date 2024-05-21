@@ -108,7 +108,7 @@ def train(config, encoder):
 		print("Saving Likelihood model results")
 		print("============================================================")
 		plot_utils.plot(likelihood_results, train_dataset.name, [od.name for od in ood_datasets], encoder=encoder, model=likelihood_ood.name,
-				  train_loss=likelihood_train_loss, out_dir = save_path,)
+				  train_loss=likelihood_train_loss, out_dir = save_path,verbose=False)
 		auc = np.append(likelihood_results['ref_auc'],likelihood_results['auc'])
 		fpr = np.append(likelihood_results['ref_fpr'],likelihood_results['fpr'])
 		df_likelihood = pd.DataFrame({'AUC_Likelihood': auc, 'AUC_Likelihood':fpr}, index=datasets)
@@ -130,7 +130,7 @@ def train(config, encoder):
 		print("Saving Residual model results")
 		print("============================================================")
 		plot_utils.plot(residual_results, train_dataset.name, [od.name for od in ood_datasets], encoder=encoder, model=model_residual.name,
-                train_loss=None, out_dir =save_path)
+                train_loss=None, out_dir =save_path, verbose=False)
 		auc = np.append(residual_results['ref_auc'],residual_results['auc'])
 		fpr = np.append(residual_results['ref_fpr'],residual_results['fpr'])
 		df_residual = pd.DataFrame({'AUC_Residual': auc, 'AUC_Residual':fpr}, index=datasets)
