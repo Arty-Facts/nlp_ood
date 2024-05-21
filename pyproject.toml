@@ -8,6 +8,7 @@ name = "nlp_ood"
 version = "0.0.0"
 authors = [
     {name = "Arturas Aleksandraus", email = "arturas@aleksandraus.se"},
+    {name = "Nithesh Chandher Karthikeyan", email = "nithesh.chandher1997@gmail.com"},
 ]
 
 description = "Project for Out-of-Distribution Detection in NLP"
