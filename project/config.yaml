@@ -1,7 +1,8 @@
 #=== Data Parameters ===#
-ind: Amazon-Health
+config: Amazon.csv
+idd: ['Amazon-Health']
 ood: ['Amazon-Music', 'Amazon-DVD', 'Amazon-Camera', 'Amazon-Books', 'Amazon-Software'] 
-encoder: ['bert-base-uncased', 'roberta-base','xlm-roberta-base', 'clip']
+encoders: ['bert-base-uncased', 'roberta-base','xlm-roberta-base', 'clip']
 device: cuda
 token_len: 512
 
@@ -12,10 +13,12 @@ time_embed_dim: 256
 dropout: 0.25
 
 #=== Optim ===#
+epoch: 5000
+batch_size: 1024
 lr: 0.0002
 beta1: 0.9
 beta2: 0.999
-eps: 1e-8
+eps: 0.00000001
 weight_decay: 0
 warmup: 5000
 grad_clip: 1
@@ -29,5 +32,5 @@ beta_min: 0.1
 beta_max: 20   
 sigma_min: 0.01
 sigma_max: 50
-save_path: ./results/plot
-method: Likelihood
+save_path: ./results/
+method: All

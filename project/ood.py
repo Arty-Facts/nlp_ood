@@ -1,8 +1,10 @@
 import argparse
+import yaml
 import functools
 import pathlib
 import torch
 import torch.nn as nn
+import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from functools import partial
@@ -15,13 +17,13 @@ import ood_detectors.losses as losses
 from ood_detectors.residual import Residual
 from data import load_datasets
 
-def train(config):
+def train(config, encoder):
 	#data parameters
-	ind = config["id"]
+	ind = config["idd"]
 	ood = config["ood"]
-	encoder = config["encoder"]
 	device = config["device"]
 	token_len = config["token_len"]
+	datasets = ind+ood
 
 	#load dataset
 	train_dataset, val_dataset, *ood_datasets = load_datasets(id = ind, ood=ood, embed_model=encoder, device=device, token_len=token_len)
@@ -33,6 +35,8 @@ def train(config):
 	dropout = config["dropout"]
 
 	# optim
+	n_epochs = config['epoch']
+	batch_size = config['batch_size']
 	lr= config["lr"]
 	beta1 = config["beta1"]
 	beta2 = config["beta2"]
@@ -52,6 +56,8 @@ def train(config):
 	sigma_max = config["sigma_max"]
 	save_path = config["save_path"]
 	method = config["method"]
+
+	feat_dim=train_dataset.feat_dim
 
 	if method =='Likelihood' or method =='All':
 
@@ -97,30 +103,75 @@ def train(config):
 			update_fn=update_fn,
 			)
 		print("Training Completed!\n")
-		likelihood_results = eval_utils.eval_ood(likelihood_model, train_dataset, val_dataset, ood_datasets, batch_size, verbose=False)
+		likelihood_results = eval_utils.eval_ood(likelihood_ood, train_dataset, val_dataset, ood_datasets, batch_size, verbose=False)
 		print("============================================================")
 		print("Saving Likelihood model results")
 		print("============================================================")
-	    plot_utils.plot(likelihood_results, train_dataset.name, [od.name for od in ood_datasets], encoder=encoder, model=model.name,
-	                    train_loss=train_loss, save = True, path = save_path,)
+		plot_utils.plot(likelihood_results, train_dataset.name, [od.name for od in ood_datasets], encoder=encoder, model=likelihood_ood.name,
+				  train_loss=likelihood_train_loss, out_dir = save_path,)
+		auc = np.append(likelihood_results['ref_auc'],likelihood_results['auc'])
+		fpr = np.append(likelihood_results['ref_fpr'],likelihood_results['fpr'])
+		df_likelihood = pd.DataFrame({'AUC_Likelihood': auc, 'AUC_Likelihood':fpr}, index=datasets)
+		df_likelihood = df_likelihood.transpose()
+		df_likelihood['Encoder']= encoder
+		del likelihood_ood
 
 	elif method == 'Residual' or method == 'All':
-		#Residual Implementation    
-
+		#Residual Implementation
+		u=0
+		dim = 512
+		model_residual = Residual(dim, u)
+		print("============================================================")
+		print("Begin Residual Model Training!")
+		print("============================================================") 
+		model_residual.fit(train_dataset)
+		residual_results = eval_utils.eval_ood(model_residual, train_dataset, val_dataset, ood_datasets, batch_size, verbose=False)
+		print("============================================================")
+		print("Saving Residual model results")
+		print("============================================================")
+		plot_utils.plot(residual_results, train_dataset.name, [od.name for od in ood_datasets], encoder=encoder, model=model_residual.name,
+                train_loss=None, out_dir =save_path)
+		auc = np.append(residual_results['ref_auc'],residual_results['auc'])
+		fpr = np.append(residual_results['ref_fpr'],residual_results['fpr'])
+		df_residual = pd.DataFrame({'AUC_Residual': auc, 'AUC_Residual':fpr}, index=datasets)
+		df_residual = df_residual.transpose()
+		df_residual['Encoder']= encoder 
+	
 	else:
 		print("Error: Undefined OOD Method")
-		exit-
+		exit
+	
+	if df_residual.empty() and df_likelihood.empty():
+		print('Error: No evaluation results')
+	
+	elif not df_residual.empty():
+		df = df_residual.copy()
+	
+	elif not df_likelihood.empty():
+		df = df_likelihood.copy()
+	
+	else:
+		df = df_likelihood.append(df_residual)
 
-    return print('Finished!')
+	del train_dataset, val_dataset, ood_datasets
+	torch.cuda.empty_cache()
+	return df
 
 def main():
-
 	parser = argparse.ArgumentParser()
 	parser.add_argument("config", type=str, help="Path to Config File")
 	args = parser.parse_args()
 	with open(args.config,"r") as file:
 		config = yaml.safe_load(file)
-	train(config)
+	encoders = config["encoders"]
+	dfs = []
+	for encoder in encoders:
+		df = train(config, encoder)
+		dfs.append(df)
+	print(result_df)
+	result_df = pd.concat(dfs, ignore_index=True)
+	df.to_csv(config['save_path']+config['config'], index=False)
+	print('Finished!')
 
 if __name__ == '__main__':
 	main()
