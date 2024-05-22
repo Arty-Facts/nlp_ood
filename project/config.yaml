@@ -2,7 +2,7 @@
 config: Amazon.csv
 idd: ['Amazon-Health']
 ood: ['Amazon-Music', 'Amazon-DVD', 'Amazon-Camera', 'Amazon-Books', 'Amazon-Software'] 
-encoders: ['bert-base-uncased', 'roberta-base','xlm-roberta-base', 'clip']
+encoders: ['albert-base-v1','distilbert-base-uncased','bert-base-uncased', 'roberta-base','xlm-roberta-base']
 device: cuda
 token_len: 512
 

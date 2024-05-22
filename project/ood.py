@@ -59,10 +59,12 @@ def train(config, encoder):
 
 	feat_dim=train_dataset.feat_dim
 
+	#Initialise DataFrame variables
+	df_residual = pd.DataFrame()
+	df_likelihood = pd.DataFrame()
+
 	if method =='Likelihood' or method =='All':
-
 		sde = sde_lib.subVPSDE(beta_min=beta_min, beta_max=beta_max)
-
 		likelihood_model = models.SimpleMLP(
 		    channels=feat_dim,
 		    bottleneck_channels=bottleneck_channels,
@@ -105,18 +107,23 @@ def train(config, encoder):
 		print("Training Completed!\n")
 		likelihood_results = eval_utils.eval_ood(likelihood_ood, train_dataset, val_dataset, ood_datasets, batch_size, verbose=False)
 		print("============================================================")
-		print("Saving Likelihood model results")
+		print("Saving Likelihood model & Results")
 		print("============================================================")
 		plot_utils.plot(likelihood_results, train_dataset.name, [od.name for od in ood_datasets], encoder=encoder, model=likelihood_ood.name,
 				  train_loss=likelihood_train_loss, out_dir = save_path,verbose=False)
-		auc = np.append(likelihood_results['ref_auc'],likelihood_results['auc'])
-		fpr = np.append(likelihood_results['ref_fpr'],likelihood_results['fpr'])
-		df_likelihood = pd.DataFrame({'AUC_Likelihood': auc, 'AUC_Likelihood':fpr}, index=datasets)
-		df_likelihood = df_likelihood.transpose()
+		out_dir = pathlib.Path(save_path) / encoder / ind[0]
+		out_dir.mkdir(exist_ok=True, parents=True)
+		filename = f"{encoder}_{ind[0]}_likelihood.pth"
+		torch.save(likelihood_ood.state_dict(), out_dir/filename)
+		auc = [likelihood_results['ref_auc']] + likelihood_results['auc'] + ['AUC']
+		fpr = [likelihood_results['ref_fpr']] + likelihood_results['fpr'] + ['FPR']
+		df_likelihood = pd.DataFrame([auc,fpr], columns=datasets+['Score'])
+		df_likelihood['Method'] = 'Likelihood'
 		df_likelihood['Encoder']= encoder
+		print(df_likelihood)
 		del likelihood_ood
 
-	elif method == 'Residual' or method == 'All':
+	if method == 'Residual' or method == 'All':
 		#Residual Implementation
 		u=0
 		dim = 512
@@ -127,34 +134,30 @@ def train(config, encoder):
 		model_residual.fit(train_dataset)
 		residual_results = eval_utils.eval_ood(model_residual, train_dataset, val_dataset, ood_datasets, batch_size, verbose=False)
 		print("============================================================")
-		print("Saving Residual model results")
+		print("Saving Residual model & Results")
 		print("============================================================")
 		plot_utils.plot(residual_results, train_dataset.name, [od.name for od in ood_datasets], encoder=encoder, model=model_residual.name,
                 train_loss=None, out_dir =save_path, verbose=False)
-		auc = np.append(residual_results['ref_auc'],residual_results['auc'])
-		fpr = np.append(residual_results['ref_fpr'],residual_results['fpr'])
-		df_residual = pd.DataFrame({'AUC_Residual': auc, 'AUC_Residual':fpr}, index=datasets)
-		df_residual = df_residual.transpose()
+		out_dir = pathlib.Path(save_path) / encoder / ind[0]
+		out_dir.mkdir(exist_ok=True, parents=True)
+		filename = f"{encoder}_{ind[0]}_residual.pth"
+		torch.save(model_residual, out_dir/filename)
+		auc = [residual_results['ref_auc']] + residual_results['auc'] + ['AUC']
+		fpr = [residual_results['ref_fpr']] + residual_results['fpr'] + ['FPR']
+		df_residual = pd.DataFrame([auc,fpr], columns=datasets+['Score'])
+		df_residual['Method']='Residual'
 		df_residual['Encoder']= encoder 
-	
-	else:
-		print("Error: Undefined OOD Method")
-		exit
-	
-	if df_residual.empty() and df_likelihood.empty():
+		print(df_residual)
+	if df_residual.empty and df_likelihood.empty:
 		print('Error: No evaluation results')
-	
-	elif not df_residual.empty():
-		df = df_residual.copy()
-	
-	elif not df_likelihood.empty():
-		df = df_likelihood.copy()
-	
 	else:
-		df = df_likelihood.append(df_residual)
+		df = pd.concat([df_likelihood, df_residual], ignore_index=True)
 
 	del train_dataset, val_dataset, ood_datasets
 	torch.cuda.empty_cache()
+	print("============================================================")
+	print(f"Completed training on {encoder} Representation!!")
+	print("============================================================")
 	return df
 
 def main():
@@ -168,9 +171,9 @@ def main():
 	for encoder in encoders:
 		df = train(config, encoder)
 		dfs.append(df)
-	print(result_df)
 	result_df = pd.concat(dfs, ignore_index=True)
-	df.to_csv(config['save_path']+config['config'], index=False)
+	print(result_df)
+	result_df.to_csv(config['save_path']+config['config'], index=False)
 	print('Finished!')
 
 if __name__ == '__main__':

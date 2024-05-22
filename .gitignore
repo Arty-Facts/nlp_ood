@@ -11,4 +11,4 @@ project/emb_amazon_corpus.pkl
 project/figs/*
 project/*.pt
 project/*.pth
-
+project/results
