@@ -96,7 +96,7 @@ def train(config, encoder):
 		    )
 
 		print("============================================================")
-		print("Begin Likelihood Model Training!")
+		print(f"Begin Likelihood Model Training for {encoder} Representation!")
 		print("============================================================")
 		likelihood_train_loss =  likelihood_ood.fit(
 			train_dataset,  
@@ -129,7 +129,7 @@ def train(config, encoder):
 		dim = 512
 		model_residual = Residual(dim, u)
 		print("============================================================")
-		print("Begin Residual Model Training!")
+		print(f"Begin Residual Model Training for {encoder} Representation!")
 		print("============================================================") 
 		model_residual.fit(train_dataset)
 		residual_results = eval_utils.eval_ood(model_residual, train_dataset, val_dataset, ood_datasets, batch_size, verbose=False)
