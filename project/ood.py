@@ -128,7 +128,9 @@ def train(config, encoder):
 	print(f"Loading datasets for {encoder} Representation!")
 	print("============================================================")
 	train_dataset, val_dataset, *ood_datasets = load_datasets(id = ind, ood=ood, embed_model=encoder, device=device, token_len=token_len)
-
+	print("training data:", len(train_dataset))
+	print("validation data:", len(val_dataset))
+	print("ood data:", sum([len(d) for d in ood_datasets]))
 	#network parameters
 	bottleneck_channels=config["bottleneck_channels"]
 	num_res_blocks=config["num_res_blocks"]
@@ -152,7 +154,7 @@ def train(config, encoder):
 	beta_min = config["beta_min"]
 	beta_max = config["beta_max"]
 	save_path = config["save_path"]
-	method = config["method"]
+	method = config["method"].lower()
 
 	feat_dim=train_dataset.feat_dim
 
@@ -160,7 +162,7 @@ def train(config, encoder):
 	df_residual = pd.DataFrame()
 	df_likelihood = pd.DataFrame()
 
-	if method =='Likelihood' or method =='ALL':
+	if method =='likelihood' or method =='all':
 		sde = sde_lib.subVPSDE(beta_min=beta_min, beta_max=beta_max)
 		likelihood_model = models.SimpleMLP(
 		    channels=feat_dim,
@@ -219,7 +221,7 @@ def train(config, encoder):
 		print(df_likelihood)
 		del likelihood_ood
 
-	if method == 'Residual' or method == 'ALL':
+	if method == 'residual' or method == 'all':
 		#Residual Implementation
 		u=0
 		dim = 512

@@ -13,7 +13,7 @@ time_embed_dim: 512
 dropout: 0.0
 
 #=== Optim ===#
-epoch: 500
+epoch: 300
 batch_size: 1024
 lr: 0.0002
 
