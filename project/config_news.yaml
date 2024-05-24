@@ -1,7 +1,7 @@
 #=== Data Parameters ===#
-config: SST2.csv
-idd: ['IMDB']
-ood: ['SST2'] 
+config: News.csv
+idd: ['NC-Top-Dataset']
+ood: ['NC-Bottom-Dataset'] 
 encoders: ['clip']
 device: cuda
 token_len: 512
