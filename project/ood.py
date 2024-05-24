@@ -120,8 +120,13 @@ def train(config, encoder):
 	device = config["device"]
 	token_len = config["token_len"]
 	datasets = ind+ood
+	verbose = config.get("verbose", False)
 
 	#load dataset
+
+	print("============================================================")
+	print(f"Loading datasets for {encoder} Representation!")
+	print("============================================================")
 	train_dataset, val_dataset, *ood_datasets = load_datasets(id = ind, ood=ood, embed_model=encoder, device=device, token_len=token_len)
 
 	#network parameters
@@ -134,22 +139,18 @@ def train(config, encoder):
 	n_epochs = config['epoch']
 	batch_size = config['batch_size']
 	lr= config["lr"]
-	beta1 = config["beta1"]
-	beta2 = config["beta2"]
-	eps = config["eps"]
-	weight_decay = config["weight_decay"]
-	warmup = config["warmup"]
-	grad_clip = config["grad_clip"]
-	ema_rate=config["ema_rate"]
+	beta1 = config.get("beta1", 0.9)
+	beta2 = config.get("beta2", 0.999)
+	eps = config.get("eps", 1e-8)
+	weight_decay = config.get("weight_decay", 0.0)
+
 
 	# train
-	continuous = config["continuous"]
-	reduce_mean = config["reduce_mean"]
-	likelihood_weighting = config["likelihood_weighting"]
+	continuous = config.get("continuous", True)
+	reduce_mean = config.get("reduce_mean", True)
+	likelihood_weighting = config.get("likelihood_weighting", False)
 	beta_min = config["beta_min"]
 	beta_max = config["beta_max"]
-	sigma_min = config["sigma_min"]
-	sigma_max = config["sigma_max"]
 	save_path = config["save_path"]
 	method = config["method"]
 
@@ -184,8 +185,7 @@ def train(config, encoder):
 		    ).to(device)
 
 		update_fn = functools.partial(
-		    losses.SDE_LRS_BF16, 
-		    total_steps=len(train_dataset)//batch_size * n_epochs,
+		    losses.SDE_BF16, 
 		    continuous=continuous,
 		    reduce_mean=reduce_mean,
 		    likelihood_weighting=likelihood_weighting,
@@ -199,6 +199,7 @@ def train(config, encoder):
 			n_epochs=n_epochs,
 			batch_size=batch_size,
 			update_fn=update_fn,
+			verbose=verbose,
 			)
 		
 		likelihood_results = eval_utils.eval_ood(likelihood_ood, train_dataset, val_dataset, ood_datasets, batch_size, verbose=False)

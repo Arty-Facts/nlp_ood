@@ -16,8 +16,11 @@ class TextEncoder(nn.Module):
         self.model = AutoModel.from_pretrained(embed_model)
 
     def forward(self, Xbatch, Xmask):
-        ber_out = self.model(input_ids=Xbatch, attention_mask=Xmask)
-        return ber_out.last_hidden_state[:, 0, :]
+        if self.name == 'openai/clip-vit-base-patch32':
+            out = self.model.text_model(input_ids=Xbatch, attention_mask=Xmask)
+        else:
+            out = self.model(input_ids=Xbatch, attention_mask=Xmask)
+        return out.last_hidden_state[:, 0, :]
 
 class TextDataset(torch.utils.data.Dataset):
     def __init__(self, data, encoder, tokenizer, token_len = None, device='cpu', name='TextDataset', cache=True, batch_size=32):
@@ -28,8 +31,14 @@ class TextDataset(torch.utils.data.Dataset):
         else:
             self.token_len = token_len
         self.token_half = self.token_len//2
-        self.cls_token = self.tokenizer.cls_token_id
-        self.pad_token = self.tokenizer.pad_token_id
+        if encoder.name == 'openai/clip-vit-base-patch32': # this is a hack to get the feature dimension for the clip model
+            self.feat_dim = 512
+            self.cls_token = self.tokenizer.convert_tokens_to_ids('<|startoftext|>')
+            self.pad_token = self.tokenizer.convert_tokens_to_ids('<|endoftext|>')
+        else:
+            self.feat_dim = encoder.model.config.hidden_size
+            self.cls_token = self.tokenizer.cls_token_id
+            self.pad_token = self.tokenizer.pad_token_id
         self.labels = data['label']
         # remove the cls_token from the encoded text
         self.tokens  = tokenizer(text=data['text'], add_special_tokens=False)['input_ids']
@@ -43,8 +52,7 @@ class TextDataset(torch.utils.data.Dataset):
         self.size = len(self.index_info)
         self.text = data['text']
         self.data_cache = None
-        self.name = name
-        self.feat_dim = encoder.model.config.hidden_size
+        self.name = name    
         if cache:
             data_cache = torch.zeros(self.size, self.feat_dim)
             loader = torch.utils.data.DataLoader(self, batch_size=batch_size, collate_fn=self.collate_fn)
@@ -71,7 +79,7 @@ class TextDataset(torch.utils.data.Dataset):
     
     def get_text(self, idx):
         line, label, _ = self[idx]
-        return label, self.tokenizer.decode(line)
+        return label, self.tokenizer.decode(line[1:])
 
     def collate_fn(self, instances):
         X, Y, idxs = zip(*instances)
@@ -229,7 +237,6 @@ def load_datasets(id=None, ood=None, embed_model=None, device='cpu', token_len =
     if ood is not None:
         if isinstance(ood, str):
             oods = [TextDataset(ood_dataset(ood), encoder, tokenizer, token_len, device, ood, **kvargs)]
-            ood_name = ood
         else:
             oods = [TextDataset(ood_dataset(ood_name), encoder, tokenizer, token_len, device, ood_name, **kvargs) for ood_name in ood]
         ret.extend(oods)
