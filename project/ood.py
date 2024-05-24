@@ -87,7 +87,15 @@ def plot(eval_data, id_name, ood_names, encoder, model, out_dir='figs', config=N
 
     if train_loss is not None:
         # Subplot 3: Training loss over time
-        axs[1, 0].plot(train_loss, label='Training Loss')
+        if isinstance(train_loss, list):
+            train_loss = np.array(train_loss)
+        if train_loss.ndim == 2:
+            train_mean, train_std = train_loss.mean(axis=0), train_loss.std(axis=0)
+            x = np.arange(len(train_mean))
+            axs[1, 0].plot(x, train_mean, label='Training Loss')
+            axs[1, 0].fill_between(x, train_mean-train_std, train_mean+train_std, alpha=0.1)
+        else:
+            axs[1, 0].plot(train_loss, label='Training Loss')
         axs[1, 0].set_xlabel('Epochs')
         axs[1, 0].set_ylabel('Loss')
         axs[1, 0].set_title('Training Loss Over Time')
@@ -96,12 +104,24 @@ def plot(eval_data, id_name, ood_names, encoder, model, out_dir='figs', config=N
     else:
         axs[1, 0].axis('off')
 
-    # Subplot 4: Configuration display
-    if config is not None:
-        config_text = "\n".join([f"{key}: {value}" for key, value in config.items()])
-        axs[1, 1].text(0.5, 0.5, config_text, ha='center', va='center', fontsize=12, transform=axs[1, 1].transAxes)
-        axs[1, 1].set_title('Configuration')
-    axs[1, 1].axis('off')
+    # Subplot 4: scatter plot of scores
+    if score.ndim == 2:
+        items, features = score.shape
+        score1, score2 = np.mean(score[:items//2], axis=0), np.mean(score[items//2:], axis=0)
+        axs[1, 1].scatter(score1, score2, alpha=0.5, label='ID Training', s=1)
+        
+        score_ref1, score_ref2 = np.mean(score_ref[:items//2], axis=0), np.mean(score_ref[items//2:], axis=0)
+        axs[1, 1].scatter(score_ref1, score_ref2, alpha=0.5, label='ID Validation', s=1)
+
+        for ood_name, score_ood in zip(ood_names, score_oods):
+            score_ood1, score_ood2 = np.mean(score_ood[:items//2], axis=0), np.mean(score_ood[items//2:], axis=0)
+            axs[1, 1].scatter(score_ood1, score_ood2, alpha=0.5, label=ood_name, s=1)
+        axs[1, 1].set_xlabel(f'mean bits/dim for first {items//2} models')
+        axs[1, 1].set_ylabel(f'mean bits/dim for last {items//2} models')
+    else:
+        axs[1, 1].off()
+    
+
 
     plt.tight_layout(rect=[0, 0.03, 1, 0.95])  # Adjust the layout
 
@@ -136,6 +156,7 @@ def train(config, encoder):
 	num_res_blocks=config["num_res_blocks"]
 	time_embed_dim=config["time_embed_dim"]
 	dropout = config["dropout"]
+	encoder = encoder.replace('/','_') #for saving model
 
 	# optim
 	n_epochs = config['epoch']
@@ -154,6 +175,7 @@ def train(config, encoder):
 	beta_min = config["beta_min"]
 	beta_max = config["beta_max"]
 	save_path = config["save_path"]
+	pathlib.Path(save_path).mkdir(exist_ok=True, parents=True) 
 	method = config["method"].lower()
 
 	feat_dim=train_dataset.feat_dim
