@@ -1,7 +1,7 @@
 #=== Data Parameters ===#
-config: NC.csv
-idd: ['NC-Top-Dataset']
-ood: ['NC-Bottom-Dataset'] 
+config: Yelp.csv
+idd: ['IMDB']
+ood: ['SST2'] 
 encoders: ['albert-base-v1','distilbert-base-uncased','bert-base-uncased', 'roberta-base','xlm-roberta-base']
 device: cuda
 token_len: 512
@@ -16,18 +16,9 @@ dropout: 0.0
 epoch: 500
 batch_size: 1024
 lr: 0.0002
-beta1: 0.9
-beta2: 0.999
-eps: 0.00000001
-weight_decay: 0
-warmup: 5000
-grad_clip: 1
-ema_rate: 0.9999
+
 
 #=== Train ===#
-continuous: True
-reduce_mean: True
-likelihood_weighting: False
 beta_min: 0.1
 beta_max: 20   
 sigma_min: 0.01
