@@ -1,5 +1,5 @@
 #=== Data Parameters ===#
-config: IMDB_SST2.csv
+config: Yelp.csv
 idd: ['IMDB']
 ood: ['SST2'] 
 encoders: ['albert-base-v1','distilbert-base-uncased','bert-base-uncased', 'roberta-base','xlm-roberta-base']
@@ -24,4 +24,4 @@ beta_max: 20
 sigma_min: 0.01
 sigma_max: 50
 save_path: ./results/
-method: All
+method: ALL
