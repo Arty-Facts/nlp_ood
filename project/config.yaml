@@ -1,7 +1,7 @@
 #=== Data Parameters ===#
-config: Yelp.csv
-idd: ['IMDB']
-ood: ['SST2'] 
+config: NC.csv
+idd: ['NC-Top-Dataset']
+ood: ['NC-Bottom-Dataset'] 
 encoders: ['albert-base-v1','distilbert-base-uncased','bert-base-uncased', 'roberta-base','xlm-roberta-base']
 device: cuda
 token_len: 512
@@ -33,4 +33,4 @@ beta_max: 20
 sigma_min: 0.01
 sigma_max: 50
 save_path: ./results/
-method: All
+method: ALL
