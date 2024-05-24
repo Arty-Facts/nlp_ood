@@ -2,7 +2,7 @@
 config: News.csv
 idd: ['NC-Top-Dataset']
 ood: ['NC-Bottom-Dataset'] 
-encoders: ['clip']
+encoders: ['openai/clip-vit-base-patch32']
 device: cuda
 token_len: 512
 verbose: True
@@ -16,7 +16,7 @@ dropout: 0.0
 #=== Optim ===#
 epoch: 500
 batch_size: 1024
-lr: 0.0002
+lr: 0.00005
 
 
 #=== Train ===#
