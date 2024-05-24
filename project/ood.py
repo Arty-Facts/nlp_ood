@@ -119,7 +119,7 @@ def plot(eval_data, id_name, ood_names, encoder, model, out_dir='figs', config=N
         axs[1, 1].set_xlabel(f'mean bits/dim for first {items//2} models')
         axs[1, 1].set_ylabel(f'mean bits/dim for last {items//2} models')
     else:
-        axs[1, 1].off()
+        axs[1, 1].axis('off')
     
 
 
