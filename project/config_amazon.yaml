@@ -1,7 +1,7 @@
 #=== Data Parameters ===#
-config: News.csv
-idd: ['NC-Top-Dataset']
-ood: ['NC-Bottom-Dataset'] 
+config: Amazon.csv
+idd: ['Amazon-Health']
+ood: ['Amazon-Camera'] 
 encoders: ['albert-base-v1','distilbert-base-uncased', 'roberta-base', 'xlm-roberta-base', 'openai/clip-vit-base-patch32']
 device: "cuda:1"
 token_len: 512
