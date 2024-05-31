@@ -157,7 +157,7 @@ def id_dataset(id_name):
         eval = {'label':labels, 'text':texts}
     
     elif id_name == 'NC-Top-Dataset':
-        split_topic = 5
+        split_topic = 7
         dataset = load_dataset("heegyu/news-category-dataset")
         new_dataset = defaultdict(list)
         for head, desc, cat in zip(dataset['train']['headline'], dataset['train']['short_description'], dataset['train']['category']):
@@ -173,7 +173,7 @@ def id_dataset(id_name):
             train['label'] += [label]*len(t)
             train['text'] += t
     elif id_name == 'NC-Bottom-Dataset':
-        split_topic = 5
+        split_topic = 7
         dataset = load_dataset("heegyu/news-category-dataset")
         new_dataset = defaultdict(list)
         for head, desc, cat in zip(dataset['train']['headline'], dataset['train']['short_description'], dataset['train']['category']):
