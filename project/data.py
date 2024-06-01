@@ -155,7 +155,116 @@ def id_dataset(id_name):
         labels = [label[l] for l in dataset['test']['label']]
         texts = dataset['test']['sentence']
         eval = {'label':labels, 'text':texts}
+
+    elif id_name == 'Rotten-Tomatoes':
+        dataset = load_dataset("rotten_tomatoes")
+        label = ['neg','pos']
+        labels = [label[l] for l in dataset['train']['label']]
+        texts = dataset['train']['text']
+        train = {'label':labels, 'text':texts}
+
+        labels = [label[l] for l in dataset['test']['label']]
+        texts = dataset['test']['text']
+        eval = {'label':labels, 'text':texts}
+
+    elif id_name == 'Fake-News':
+        dataset = load_dataset("mrm8488/fake-news")
+        label = ['fake', 'real']
+        labels = [label[l] for l in dataset['train']['label']]
+        texts = dataset['train']['text']
+        train_texts, val_texts, train_labels, val_labels = train_test_split(texts, labels, test_size=0.2, random_state=0, stratify=labels)
+        train = {'label':train_labels, 'text':train_texts}
+        eval = {'label':val_labels, 'text':val_texts}
+
+    elif id_name == 'Only-Fake-News':
+        dataset = load_dataset("mrm8488/fake-news")
+        label = ['fake', 'real']
+        labels = [label[l] for l in dataset['train']['label']]
+        texts = dataset['train']['text']
+        fake_labels, fake_texts=[],[]
+        for i in range(0,len(labels)):
+            if labels[i]=='fake':
+                fake_labels.append(labels[i])
+                fake_texts.append(texts[i])
+
+        train_texts, val_texts, train_labels, val_labels = train_test_split(fake_texts, fake_labels, test_size=0.2, random_state=0)
+        train = {'label':train_labels, 'text':train_texts}
+        eval = {'label':val_labels, 'text':val_texts}
     
+    elif id_name == 'Only-Real-News':
+        dataset = load_dataset("mrm8488/fake-news")
+        label = ['fake', 'real']
+        labels = [label[l] for l in dataset['train']['label']]
+        texts = dataset['train']['text']
+        real_labels, real_texts=[],[]
+        for i in range(0,len(labels)):
+            if labels[i]=='real':
+                real_labels.append(labels[i])
+                real_texts.append(texts[i])
+        train_texts, val_texts, train_labels, val_labels = train_test_split(real_texts, real_labels, test_size=0.2, random_state=0)
+        train = {'label':train_labels, 'text':train_texts}
+        eval = {'label':val_labels, 'text':val_texts}
+
+    elif id_name == 'MNLI':
+        mnli_dataset = load_dataset("glue", "mnli")
+        label = ['entailment','neutral','contradiction']
+        labels = [label[l] for l in mnli_dataset['train']['label']]
+        premise = [p for p in mnli_dataset['train']['premise']]
+        hypothesis = [f' [SEP] {h}' for h in mnli_dataset['train']['hypothesis']]
+        texts = [x + y for x, y in zip(premise, hypothesis)]
+        train = {'label':labels, 'text':texts}
+
+        labels = [label[l] for l in mnli_dataset['validation_matched']['label']]
+        premise = [p for p in mnli_dataset['validation_matched']['premise']]
+        hypothesis = [f' [SEP] {h}' for h in mnli_dataset['validation_matched']['hypothesis']]
+        texts = [x + y for x, y in zip(premise, hypothesis)]
+        eval = {'label':labels, 'text':texts}
+
+    elif id_name == 'SNLI':
+        snli_dataset = load_dataset("stanfordnlp/snli")
+        label = ['entailment','neutral','contradiction']
+        labels = [label[l] for l in snli_dataset['train']['label']]
+        premise = [p for p in snli_dataset['train']['premise']]
+        hypothesis = [f' [SEP] {h}' for h in snli_dataset['train']['hypothesis']]
+        texts = [x + y for x, y in zip(premise, hypothesis)]
+        train = {'label':labels, 'text':texts}
+
+        labels = [label[l] for l in snli_dataset['validation']['label']]
+        premise = [p for p in snli_dataset['validation']['premise']]
+        hypothesis = [f' [SEP] {h}' for h in snli_dataset['validation']['hypothesis']]
+        texts = [x + y for x, y in zip(premise, hypothesis)]
+        eval = {'label':labels, 'text':texts}
+    
+    elif id_name == 'MNLI-SNLI-OOD':
+        snli_dataset = load_dataset("stanfordnlp/snli")
+        label = ['entailment','neutral','contradiction']
+        labels = [label[l] for l in snli_dataset['test']['label']]
+        premise = [p for p in snli_dataset['test']['premise']]
+        hypothesis = [f' [SEP] {h}' for h in snli_dataset['test']['hypothesis']]
+        texts = [x + y for x, y in zip(premise, hypothesis)]
+        train = {'label':labels, 'text':texts}
+
+        mnli_dataset = load_dataset("glue", "mnli")
+        labels = [label[l] for l in mnli_dataset['validation_mismatched']['label']]
+        premise = [p for p in mnli_dataset['validation_mismatched']['premise']]
+        hypothesis = [f' [SEP] {h}' for h in mnli_dataset['validation_mismatched']['hypothesis']]
+        texts = [x + y for x, y in zip(premise, hypothesis)]
+        eval = {'label':labels, 'text':texts}
+
+    elif id_name == 'STS':
+        dataset = load_dataset("sentence-transformers/stsb")
+        labels = dataset['train']['score']
+        s1 = [p for p in dataset['train']['sentence1']]
+        s2 = [f' [SEP] {h}' for h in dataset['train']['sentence2']]
+        texts = [x + y for x, y in zip(s1, s2)]
+        train = {'label':labels, 'text':texts}
+
+        labels = dataset['validation']['score']
+        s1 = [p for p in dataset['validation']['sentence1']]
+        s2 = [f' [SEP] {h}' for h in dataset['validation']['sentence2']]
+        texts = [x + y for x, y in zip(s1, s2)]
+        eval = {'label':labels, 'text':texts}
+            
     elif id_name == 'NC-Top-Dataset':
         split_topic = 7
         dataset = load_dataset("heegyu/news-category-dataset")
