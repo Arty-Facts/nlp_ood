@@ -1,18 +1,27 @@
 --extra-index-url https://download.pytorch.org/whl/cu118
 
+accelerate 
+bitsandbytes 
+cryptography
+datasets 
+einops 
+evaluate 
 jupyter
 matplotlib
 notebook
 numpy
+ood_detectors
 optuna
 optuna-dashboard
+pandas
+peft 
+rouge_score
+scikit-learn
+scipy 
+spacy[cuda11x]
 torch
 torchvision
-cryptography
-pandas
-scikit-learn
-spacy[cuda11x]
 tqdm
 transformers[torch]
-ood_detectors
-datasets
+trl 
+evaluate

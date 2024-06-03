@@ -12,3 +12,4 @@ project/figs/*
 project/*.pt
 project/*.pth
 project/results
+project/cache

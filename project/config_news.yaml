@@ -4,7 +4,7 @@ idd: ['NC-Top-Dataset']
 ood: ['NC-Bottom-Dataset'] 
 encoders: ['albert-base-v1','distilbert-base-uncased', 'roberta-base', 'xlm-roberta-base', 'openai/clip-vit-base-patch32']
 device: "cuda:1"
-token_len: 512
+token_len: 32
 verbose: True
 
 #=== Network Parameters ===#
